@@ -1,24 +1,24 @@
 # ESPHome Custom Devices Collection
 
-A collection of my custom ESPHome devices for various home monitoring and automation tasks. Each device is designed with power efficiency in mind, typically using solar power and deep sleep modes for extended battery life.
+A collection of my custom ESPHome devices. Each device is designed for solving a specific problem and with power efficiency in mind. Uses solar power and deep sleep modes for extended battery life.
 
 ## Projects
 
 ### Water Radar Device
 
-A system that monitors underground water cistern levels using a mmWave radar sensor. Transmits readings to Firestore via WiFi. Uses non-contact radar technology, solving condensation issues that affect ultrasonic sensors.
+A system that monitors underground water cistern levels using a mmWave radar sensor. Measures distance to water level and transmits reading to Firestore via WiFi.
 
 [View Water Radar Documentation](water-radar/README.md) | [View Configuration](water-radar/water-radar.yaml)
 
 ### Propane Angle Device
 
-A system that monitors propane tank levels using a magnetic hall effect angle sensor (AS5600). Measures the tank's dial gauge angle and transmits data via cellular (Notecard) connectivity, ideal for locations without WiFi coverage.
+A system that monitors propane tank levels using a magnetic hall effect angle sensor (AS5600). Measures the direction of the tank's dial gauge and transmits via cellular (Notecard) connectivity.
 
 [View Propane Angle Documentation](propane-angle/README.md) | [View Configuration](propane-angle/propane-angle.yaml)
 
-### Water TOF Device
+### Water TOF Device (Depreciated)
 
-A system that monitors underground water cistern levels using a Time-of-Flight sensor (VL53L1X). Includes a pre-heating mechanism to remove condensation from the sensor lens. Transmits readings to Firestore via WiFi. Struggles in humid environments (my main use case is an underground cistern), so I've discontinued development of it.
+A system that monitors underground water cistern levels using a Time-of-Flight sensor (VL53L1X). Struggled with humidity, so it has a pre-heating resistor setup to defog the lens. I've stopped using it and switched to mmWave radar, but left it up as an example since it works.
 
 [View Water TOF Documentation](water-tof/README.md) | [View Configuration](water-tof/water-tof.yaml)
 
@@ -76,16 +76,17 @@ home_wifi_ssid: "your_home_wifi_ssid"
 home_wifi_password: "your_home_wifi_password"
 secondary_wifi_ssid: "your_secondary_wifi_ssid"
 secondary_wifi_password: "your_secondary_wifi_password"
+# Note AP mode uses the home wifi password as the default password
 
-# Firebase Configuration (for Water Radar and Water TOF devices)
+# Firebase Configuration (for WiFi devices)
 firebase_api_key: "your_firebase_api_key"
 firebase_project_id: "your_firebase_project_id"
 
-# Notecard Configuration (for Propane Angle device)
+# Notecard Configuration (for cellular devices)
 notecard_project_id: "your_notecard_project_id"
 notecard_org: "your_notecard_org"
 ```
 
 ## License
 
-This project is open source under the MIT with attribution license.
+This project is licensed under the MIT License with Attribution - see the [LICENSE](LICENSE) file for details.

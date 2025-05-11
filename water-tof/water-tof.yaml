@@ -1,3 +1,5 @@
+# Depreciated
+
 substitutions:
     device_name: TOF-water-sensor
     friendly_name: TOF Heated Water Sensor
@@ -103,9 +105,9 @@ sensor:
 
                               // Full path for device doc: devices/{mac_str}
                               // Full path for history doc: devices/{mac_str}/history/{doc_id_str}
-                              std::string commit_url = 
-                                "https://firestore.googleapis.com/v1/projects/avewire-water/databases/(default)/documents:commit?key="
-                                + id(firebase_api_key);
+                              std::string commit_url =
+                              "https://firestore.googleapis.com/v1/projects/${firebase_project_id_sub}/databases/(default)/documents:commit?key="
+                              "${firebase_api_key_sub}";
 
                               // Construct the JSON and log the info
                               // Main doc path

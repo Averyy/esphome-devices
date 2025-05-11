@@ -1,5 +1,7 @@
 # Water Cistern Project (TOF Sensor)
 
+# Depreciated
+
 A system to monitor underground water cistern levels using a Time-of-Flight (TOF) distance sensor (VL53L1X). The ESPHome device measures the distance every few hours and transmits it to a Firestore database via WiFi to view on the web. This implementation includes a pre-heating mechanism for the sensor lens to remove condensation and fog that typically forms in underground tanks, addressing a common issue with optical sensors.
 
 [View Configuration File (water-tof.yaml)](water-tof.yaml)
@@ -40,7 +42,7 @@ A high-precision Time-of-Flight distance sensor with:
 -   Higher precision than ultrasonic sensors
 -   Less affected by tank shape or obstacles
 -   Compact size
--	TOF sensors are way smaller and cheaper than radar sensors
+-   TOF sensors are way smaller and cheaper than radar sensors
 
 **Limitations:**
 
