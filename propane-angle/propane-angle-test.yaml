@@ -1,0 +1,39 @@
+substitutions:
+    device_name: propane-angle-tester
+    friendly_name: Propane Angle tester
+
+packages:
+    # Select ESP32 Board:
+    device_base: !include common/device_esp32dev.yaml
+    # device_base: !include common/device_esp32c3_mini.yaml
+    # device_base: !include common/device_esp32c6_firebeetle.yaml
+
+    # Optional Features:
+    mosfet_control: !include common/mosfet_control.yaml #mosfet_pin on at boot, off at sleep
+    # firestore_setup: !include common/firestore_setup.yaml #firebase globals and http
+    # wifi: !include common/wifi.yaml
+
+output:
+    - platform: gpio
+      pin: GPIO4
+      id: mosfet_pin
+
+# Magnetic hall effect sensor configuration
+
+i2c:
+    sda: GPIO21
+    scl: GPIO22
+    scan: true
+
+as5600:
+    id: my_as5600
+    power_mode: low3
+
+sensor:
+    - platform: as5600
+      as5600_id: my_as5600
+      name: "Angle"
+      update_interval: 1s
+      id: position
+      filters:
+          - lambda: "return x * 360.0 / 4096.0;"

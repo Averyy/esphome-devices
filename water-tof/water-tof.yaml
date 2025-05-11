@@ -1,0 +1,186 @@
+substitutions:
+    device_name: TOF-water-sensor
+    friendly_name: TOF Heated Water Sensor
+
+external_components:
+    - source: github://Averyy/esphome-custom-components
+      components: [vl53l1x]
+
+packages:
+    # Select ESP32 Board:
+    device_base: !include common/device_esp32dev.yaml
+    # device_base: !include common/device_esp32c3_mini.yaml
+    # device_base: !include common/device_esp32c6_firebeetle.yaml
+
+    # Optional Features:
+    mosfet_control: !include common/mosfet_control.yaml #mosfet_pin on at boot, off at sleep
+    # firestore_setup: !include common/firestore_setup.yaml #firebase globals and http
+    wifi: !include common/wifi.yaml
+
+esphome:
+    on_boot:
+        then:
+            - output.turn_on: heater_pin
+    on_shutdown:
+        then:
+            - output.turn_off: heater_pin
+
+output:
+    - platform: gpio
+      pin: GPIO23
+      id: mosfet_pin
+    - platform: gpio
+      pin: GPIO19
+      id: heater_pin
+
+i2c:
+    - id: bus_a
+      sda: GPIO21
+      scl: GPIO22
+      scan: true
+      timeout: 50ms
+
+globals:
+    - id: firebase_api_key
+      type: std::string
+      initial_value: '"${firebase_api_key}"'
+
+http_request:
+    id: http_client
+    useragent: "ESPHome ToF Sensor"
+    timeout: 10s
+    verify_ssl: false
+    follow_redirects: true
+    watchdog_timeout: 30s
+
+vl53l1x:
+    distance_mode: long
+    update_interval: 0.5s
+
+sensor:
+    - platform: vl53l1x
+      i2c_id: bus_a
+      distance:
+          name: "VL53L1X ToF Distance Sensor"
+          id: water_sensor
+          entity_category: "diagnostic"
+          filters:
+              - lambda: |-
+                    static auto start_time = millis();
+                    if (millis() - start_time < 180000) { // 3 minutes
+                      return {}; // Return empty to skip this reading
+                    }
+                    // After 3 minutes, apply your existing filters
+                    if (x < 45 || x > 4200 || x == 0.0 || std::isnan(x)) {
+                      return 0;
+                    }
+                    return x;
+              - quantile:
+                    window_size: 11
+                    send_every: 11
+                    send_first_at: 11
+                    quantile: 0.5
+          on_value:
+              - if:
+                    condition:
+                        lambda: "return id(wifi_id).is_connected();"
+                    then:
+                        - lambda: |-
+                              // Received value
+                              float sensor_value = x;  // Store the filtered value
+                              ESP_LOGD("main", "Received filtered value of %.2f mm", sensor_value);
+
+                              // Last 6 digits of MAC for device doc ID 
+                              char mac_str[7];
+                              uint8_t mac[6];
+                              WiFi.macAddress(mac);
+                              sprintf(mac_str, "%02X%02X%02X", mac[3], mac[4], mac[5]);
+
+                              // Subcollection history doc ID (random)
+                              uint32_t doc_id = esp_random();
+                              char doc_id_str[9];
+                              sprintf(doc_id_str, "%08X", doc_id);
+
+                              // Full path for device doc: devices/{mac_str}
+                              // Full path for history doc: devices/{mac_str}/history/{doc_id_str}
+                              std::string commit_url = 
+                                "https://firestore.googleapis.com/v1/projects/avewire-water/databases/(default)/documents:commit?key="
+                                + id(firebase_api_key);
+
+                              // Construct the JSON and log the info
+                              // Main doc path
+                              std::string main_doc_path = "projects/avewire-water/databases/(default)/documents/devices/" + std::string(mac_str);
+                              // History doc path
+                              std::string hist_doc_path = main_doc_path + "/history/" + doc_id_str;
+
+                              ESP_LOGD("firestore", "Preparing single commit with 2 writes:");
+                              ESP_LOGD("firestore", " - Main doc: %s  (distance=%.2f mm, last_updated=REQUEST_TIME)", main_doc_path.c_str(), sensor_value);
+                              ESP_LOGD("firestore", " - History doc: %s  (distance=%.2f mm, timestamp=REQUEST_TIME)", hist_doc_path.c_str(), sensor_value);
+
+                              // Build the commit body
+                              std::string commit_body = R"({
+                                "writes": [
+                                  {
+                                    "update": {
+                                      "name": ")" + main_doc_path + R"(",
+                                      "fields": {
+                                        "distance": {
+                                          "doubleValue": )" + std::to_string(sensor_value) + R"(
+                                        }
+                                      }
+                                    },
+                                    "updateTransforms": [
+                                      {
+                                        "fieldPath": "last_updated",
+                                        "setToServerValue": "REQUEST_TIME"
+                                      }
+                                    ],
+                                    "updateMask": {
+                                      "fieldPaths": ["distance", "last_updated"]
+                                    }
+                                  },
+                                  {
+                                    "update": {
+                                      "name": ")" + hist_doc_path + R"(",
+                                      "fields": {
+                                        "distance": {
+                                          "doubleValue": )" + std::to_string(sensor_value) + R"(
+                                        }
+                                      }
+                                    },
+                                    "updateTransforms": [
+                                      {
+                                        "fieldPath": "timestamp",
+                                        "setToServerValue": "REQUEST_TIME"
+                                      }
+                                    ],
+                                    "currentDocument": {
+                                      "exists": false
+                                    }
+                                  }
+                                ]
+                              })";
+
+                              // Prepare http headers
+                              std::list<esphome::http_request::Header> headers;
+                              {
+                                esphome::http_request::Header h;
+                                h.name = "Content-Type";
+                                h.value = "application/json";
+                                headers.push_back(h);
+                              }
+
+                              // Single commit request
+                              auto result = id(http_client).post(commit_url, commit_body, headers);
+                              if (result) {
+                                ESP_LOGD("firestore", "SUCCESS: Both writes (main & history) saved!");
+                              } else {
+                                ESP_LOGE("firestore", "ERROR: Commit request failed!");
+                              }
+
+                        - deep_sleep.enter: deep_sleep_mode
+
+deep_sleep:
+    id: deep_sleep_mode
+    run_duration: 5m
+    sleep_duration: 3h

@@ -1,0 +1,166 @@
+substitutions:
+    device_name: radar-water-sensor
+    friendly_name: Radar Water Sensor
+    # Firebase credentials as substitutions
+    firebase_api_key_sub: !secret firebase_api_key
+    firebase_project_id_sub: !secret firebase_project_id
+
+external_components:
+    - source: github://Averyy/esphome-custom-components
+      components: [hlk_ld2413]
+
+packages:
+    # Select ESP32 Board:
+    device_base: !include common/device_esp32dev.yaml
+    # device_base: !include common/device_esp32c3_mini.yaml
+    # device_base: !include common/device_esp32c6_firebeetle.yaml
+
+    # Optional Features:
+    mosfet_control: !include common/mosfet_control.yaml #mosfet_pin on at boot, off at sleep
+    wifi: !include common/wifi.yaml
+
+output:
+    - platform: gpio
+      pin: GPIO4
+      id: mosfet_pin
+
+uart:
+    id: uart_radar
+    tx_pin: GPIO17
+    rx_pin: GPIO16
+    baud_rate: 115200
+
+http_request:
+    id: http_client
+    useragent: "ESPHome ${friendly_name}"
+    timeout: 10s
+    verify_ssl: false
+    follow_redirects: true
+    watchdog_timeout: 30s
+
+sensor:
+    - platform: hlk_ld2413
+      uart_id: uart_radar
+      name: "Water Level"
+      unit_of_measurement: "mm"
+      accuracy_decimals: 0
+      update_interval: 2.4s # Default 2.4s, approx 15x the report cycle value
+      # Optional configurations with defaults matching datasheet
+      min_distance: 150mm # Default 150mm, Valid range: 150-10500mm
+      max_distance: 2500mm # Default 10000mm, Valid range: 250-10500mm
+      report_cycle: 160ms # Default 160ms, Valid range: 50-1000ms
+      calibrate_on_boot: true # Default false, performs threshold calibration during setup
+      filters:
+          # Ignore the first 10
+          - skip_initial: 10
+          # Filter out zero values
+          - filter_out: 0
+          # Optionally add a timeout if no valid reading after some time
+          - timeout:
+                timeout: 90s
+                value: 0
+      on_value:
+          - if:
+                condition:
+                    lambda: "return id(wifi_id).is_connected();"
+                then:
+                    - lambda: |-
+                          // Received value
+                          float sensor_value = x;  // Store the filtered value
+                          ESP_LOGD("main", "Received filtered value of %.2f mm", sensor_value);
+
+                          // Last 6 digits of MAC for device doc ID
+                          char mac_str[7];
+                          uint8_t mac[6];
+                          WiFi.macAddress(mac);
+                          sprintf(mac_str, "%02X%02X%02X", mac[3], mac[4], mac[5]);
+
+                          // Subcollection history doc ID (random)
+                          uint32_t doc_id = esp_random();
+                          char doc_id_str[9];
+                          sprintf(doc_id_str, "%08X", doc_id);
+
+                          // Full path for device doc: devices/{mac_str}
+                          // Full path for history doc: devices/{mac_str}/history/{doc_id_str}
+                          std::string commit_url =
+                            "https://firestore.googleapis.com/v1/projects/${firebase_project_id_sub}/databases/(default)/documents:commit?key="
+                            "${firebase_api_key_sub}";
+
+                          // Construct the JSON and log the info
+                          // Main doc path
+                          std::string main_doc_path = "projects/${firebase_project_id_sub}/databases/(default)/documents/devices/" + std::string(mac_str);
+                          // History doc path
+                          std::string hist_doc_path = main_doc_path + "/history/" + doc_id_str;
+
+                          ESP_LOGD("firestore", "Preparing single commit with 2 writes:");
+                          ESP_LOGD("firestore", " - Main doc: %s  (distance=%.2f mm, last_updated=REQUEST_TIME)", main_doc_path.c_str(), sensor_value);
+                          ESP_LOGD("firestore", " - History doc: %s  (distance=%.2f mm, timestamp=REQUEST_TIME)", hist_doc_path.c_str(), sensor_value);
+
+                          // Build the commit body
+                          std::string commit_body = R"({
+                            "writes": [
+                              {
+                                "update": {
+                                  "name": ")" + main_doc_path + R"(",
+                                  "fields": {
+                                    "distance": {
+                                      "doubleValue": )" + std::to_string(sensor_value) + R"(
+                                    }
+                                  }
+                                },
+                                "updateTransforms": [
+                                  {
+                                    "fieldPath": "last_updated",
+                                    "setToServerValue": "REQUEST_TIME"
+                                  }
+                                ],
+                                "updateMask": {
+                                  "fieldPaths": ["distance", "last_updated"]
+                                }
+                              },
+                              {
+                                "update": {
+                                  "name": ")" + hist_doc_path + R"(",
+                                  "fields": {
+                                    "distance": {
+                                      "doubleValue": )" + std::to_string(sensor_value) + R"(
+                                    }
+                                  }
+                                },
+                                "updateTransforms": [
+                                  {
+                                    "fieldPath": "timestamp",
+                                    "setToServerValue": "REQUEST_TIME"
+                                  }
+                                ],
+                                "currentDocument": {
+                                  "exists": false
+                                }
+                              }
+                            ]
+                          })";
+
+                          // Prepare http headers
+                          std::list<esphome::http_request::Header> headers;
+                          {
+                            esphome::http_request::Header h;
+                            h.name = "Content-Type";
+                            h.value = "application/json";
+                            headers.push_back(h);
+                          }
+
+                          // Single commit request
+                          auto result = id(http_client).post(commit_url, commit_body, headers);
+                          if (result) {
+                            ESP_LOGD("firestore", "SUCCESS: Both writes (main & history) saved!");
+                          } else {
+                            ESP_LOGE("firestore", "ERROR: Commit request failed!");
+                          }
+
+                    - deep_sleep.enter: deep_sleep_mode
+
+# Deep sleep configuration
+deep_sleep:
+    id: deep_sleep_mode
+    run_duration: 3min #this will cause the device to goto sleep if something stalls or fails
+    sleep_duration: 5h

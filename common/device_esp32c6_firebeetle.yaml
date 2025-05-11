@@ -1,0 +1,23 @@
+# common/device_esp32c6_firebeetle.yaml
+# 🚧 under construction 🚧
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  platformio_options:
+    build_flags:
+      - -DI2C_NUM_1=I2C_NUM_0 # Required for ESP32-C6 compatibility
+
+esp32:
+  board: esp32-c6-devkitc-1
+  variant: esp32c6
+  flash_size: 4MB
+  framework:
+    type: esp-idf
+    version: 5.3.1
+    source: https://github.com/tasmota/esp-idf/releases/download/v5.3.1.240921/esp-idf-v5.3.1.zip
+    platform_version: 6.8.1
+    # platform_version: 6.9.0 <- maybe give this a try?
+
+logger:
+  level: DEBUG

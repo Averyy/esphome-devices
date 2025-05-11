@@ -1,0 +1,10 @@
+# common/device_esp32dev.yaml
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+
+esp32:
+  board: esp32dev
+
+logger:
+  level: DEBUG

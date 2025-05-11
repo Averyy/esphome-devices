@@ -1,0 +1,25 @@
+# common/device_esp32c3_mini.yaml
+# 🚧 under construction 🚧
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  # platformio_options: <- might be needed for super mini
+  #   board_build.flash_mode: dio
+  # platformio_options: <- might be needed for super mini
+  #   board_build.f_flash: 40000000L
+  #   board_build.flash_mode: dio
+  #   board_build.flash_size: 4MB
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf
+    version: recommended
+    sdkconfig_options: # <- assuming not needing bluetooth this sleeps it
+      CONFIG_BT_CTRL_MODEM_SLEEP: y
+
+logger:
+  level: DEBUG
+# c3 pinout guide: https://www.studiopieters.nl/esp32-c3-pinout/

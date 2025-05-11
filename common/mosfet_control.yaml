@@ -1,0 +1,16 @@
+# common/mosfet_control.yaml
+esphome:
+  on_boot:
+    then:
+      - output.turn_on: mosfet_pin
+      - delay: 0.5s
+  on_shutdown:
+    then:
+      - output.turn_off: mosfet_pin
+
+# in main file make sure to include:
+#
+# output:
+#   - platform: gpio
+#     pin: GPIO#
+#     id: mosfet_pin

@@ -1,0 +1,108 @@
+substitutions:
+    device_name: propane-angle-sensor
+    friendly_name: Propane Angle Sensor
+
+external_components:
+    - source: github://Averyy/esphome-custom-components
+      components: [notecard]
+
+packages:
+    # Select ESP32 Board:
+    device_base: !include common/device_esp32dev.yaml
+    # device_base: !include common/device_esp32c3_mini.yaml
+    # device_base: !include common/device_esp32c6_firebeetle.yaml
+
+    # Optional Features:
+    mosfet_control: !include common/mosfet_control.yaml #mosfet_pin on at boot, off at sleep
+    # firestore_setup: !include common/firestore_setup.yaml #firebase globals and http
+    # wifi: !include common/wifi.yaml
+
+output:
+    - platform: gpio
+      pin: GPIO4
+      id: mosfet_pin
+
+# Notecard configuration
+notecard:
+    id: notecard_component
+    uart_id: uart_notecard
+    project_id: !secret notecard_project_id
+    sync_interval: 48h #high because of manual sync trigger
+    org: !secret notecard_org
+    # variables:
+    #     - name: "sleepDuration"
+    #       type: number
+    #       default: 360 #also support decimals
+    #     - name: "syncInterval"
+    #       type: number
+    #       default: 1440 #also support decimals
+    #     - name: "forceSyncEverytime"
+    #       type: boolean
+    #       default: "false"
+    #     - name: "org"
+    #       type: string
+    #       default: !secret notecard_org
+
+uart:
+    id: uart_notecard
+    tx_pin: GPIO17
+    rx_pin: GPIO16
+    baud_rate: 9600
+
+# Magnetic hall effect sensor configuration
+
+i2c:
+    sda: GPIO21
+    scl: GPIO22
+    scan: true
+
+as5600:
+    id: my_as5600
+    power_mode: low3
+
+sensor:
+    - platform: as5600
+      as5600_id: my_as5600
+      name: "Angle"
+      update_interval: 1s
+      id: position
+      filters:
+          - lambda: "return x * 360.0 / 4096.0;"
+          - median: #previous was sliding_window_moving_average
+                window_size: 10
+                send_every: 10
+                send_first_at: 10
+      on_value:
+          then:
+              - lambda: |-
+                    // Get values from Notecard
+                    float temperature = id(notecard_component).get_notecard_temperature();
+                    float battery_voltage = id(notecard_component).get_notecard_battery_voltage();
+
+                    // Create JSON with all values
+                    std::string json = "{";
+                    json += "\"angle\":" + to_string(x);
+                    json += ",\"temperature\":" + to_string(temperature);
+                    json += ",\"batteryVoltage\":" + to_string(battery_voltage);
+                    json += "}";
+
+                    ESP_LOGD("main", "Raw json: %s", json.c_str());
+
+                    bool success = id(notecard_component).send_data(json);
+                    ESP_LOGD("main", "Data send %s", success ? "successful" : "failed");
+
+                    // Trigger immediate sync with the Notehub
+                    bool sync_success = id(notecard_component).sync_now();
+                    ESP_LOGD("main", "Sync trigger %s", sync_success ? "successful" : "failed");
+
+                    // Give time for Notecard communication to complete
+                    ESP_LOGD("main", "Going to sleep in 2s...");
+                    delay(2000);
+
+              - deep_sleep.enter: deep_sleep_mode
+
+# Deep sleep configuration
+deep_sleep:
+    id: deep_sleep_mode
+    run_duration: 5min #this will cause the device to goto sleep if something stalls or fails
+    sleep_duration: 6h

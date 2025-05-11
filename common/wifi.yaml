@@ -1,0 +1,12 @@
+# common/wifi.yaml
+wifi:
+  id: wifi_id
+  networks:
+    - ssid: !secret secondary_wifi_ssid
+      password: !secret secondary_wifi_password
+    - ssid: !secret home_wifi_ssid
+      password: !secret home_wifi_password
+  power_save_mode: none
+  ap:
+    ssid: "${friendly_name}"
+    password: !secret home_wifi_password
