@@ -1,0 +1,45 @@
+substitutions:
+    device_name: radar-water-tester
+    friendly_name: Radar Water Tester
+
+external_components:
+    - source: github://Averyy/esphome-custom-components@main
+      components: [hlk_ld8001h]
+
+packages:
+    # Select ESP32 Board:
+    device_base: !include common/device_esp32dev.yaml
+    # device_base: !include common/device_esp32c3_mini.yaml
+    # device_base: !include common/device_esp32c6_firebeetle.yaml
+
+    # Optional Features:
+    # mosfet_control: !include common/mosfet_control.yaml #mosfet_pin on at boot, off at sleep
+    # wifi: !include common/wifi.yaml
+
+# output:
+#     - platform: gpio
+#       pin: GPIO4
+#       id: mosfet_pin
+
+uart:
+    id: uart_radar
+    tx_pin: GPIO1
+    rx_pin: GPIO3
+    baud_rate: 115200
+
+sensor:
+    - platform: hlk_ld8001h
+      uart_id: uart_radar
+      name: "Distance to Water"
+      unit_of_measurement: "mm"
+      update_interval: 3s
+      range: 2.5m # Max detection range. Default 10m (0.15m - 40m), 0.5-1m greater than expected max distance to water
+      filters:
+          # Ignore the first 1
+          - skip_initial: 1
+          # Filter out zero values
+          - filter_out: 0
+          # Optionally add a timeout if no valid reading after some time
+          - timeout:
+                timeout: 60s
+                value: 0

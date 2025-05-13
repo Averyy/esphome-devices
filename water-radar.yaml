@@ -1,6 +1,6 @@
 substitutions:
-    device_name: radar-water-sensor
-    friendly_name: Radar Water Sensor
+    device_name: radar-80ghz-water-sensor
+    friendly_name: Radar 80GHz Water Sensor
     # Firebase credentials as substitutions
     firebase_api_key_sub: !secret firebase_api_key
     firebase_project_id_sub: !secret firebase_project_id
@@ -26,8 +26,8 @@ output:
 
 uart:
     id: uart_radar
-    tx_pin: GPIO17
-    rx_pin: GPIO16
+    tx_pin: GPIO1
+    rx_pin: GPIO3
     baud_rate: 115200
 
 http_request:

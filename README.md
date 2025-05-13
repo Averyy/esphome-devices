@@ -8,19 +8,19 @@ A collection of my custom ESPHome devices. Each device is designed for solving a
 
 A system that monitors underground water cistern levels using a mmWave radar sensor. Measures distance to water level and transmits reading to Firestore via WiFi.
 
-[View Water Radar Documentation](water-radar/README.md) | [View Configuration](water-radar/water-radar.yaml)
+[View Water Radar Documentation](water-radar-README.md) | [View Configuration](water-radar.yaml)
 
 ### Propane Angle Device
 
 A system that monitors propane tank levels using a magnetic hall effect angle sensor (AS5600). Measures the direction of the tank's dial gauge and transmits via cellular (Notecard) connectivity.
 
-[View Propane Angle Documentation](propane-angle/README.md) | [View Configuration](propane-angle/propane-angle.yaml)
+[View Propane Angle Documentation](propane-angle-README.md) | [View Configuration](propane-angle.yaml)
 
 ### Water TOF Device (Depreciated)
 
 A system that monitors underground water cistern levels using a Time-of-Flight sensor (VL53L1X). Struggled with humidity, so it has a pre-heating resistor setup to defog the lens. I've stopped using it and switched to mmWave radar, but left it up as an example since it works.
 
-[View Water TOF Documentation](water-tof/README.md) | [View Configuration](water-tof/water-tof.yaml)
+[View Water TOF Documentation](water-tof-README.md) | [View Configuration](water-tof.yaml)
 
 ## Common Components
 
@@ -55,15 +55,18 @@ These shared configurations help maintain consistency across devices and reduce 
 
 ## Project Structure
 
-Will organize to have individual folders per project soon.
+All YAML configuration files are now at the top level as they didn't work properly in subfolders.
 
 ```
 ├── common/              # Shared ESPHome configurations
-├── propane-angle/       # Propane tank level monitoring using a magnetic angle sensor
-├── water-radar/         # Water level monitoring device using a Radar sensor
-├── water-tof/           # Water level monitoring device using a Time-of-Flight sensor
-├── build.sh           	# Build script that moves bin files after
-└── README.md           # This file
+├── water-radar.yaml     # Water radar device configuration
+├── water-radar-c3.yaml  # Water radar for ESP32-C3 configuration
+├── propane-angle.yaml   # Propane angle device configuration
+├── propane-angle-c3.yaml # Propane angle for ESP32-C3 configuration
+├── water-tof.yaml       # Water TOF device configuration
+├── *-README.md          # Documentation for each device
+├── build.sh             # Build script that moves bin files after
+└── README.md            # This file
 ```
 
 ## Configuration and Secrets
