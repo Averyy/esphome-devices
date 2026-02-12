@@ -48,6 +48,9 @@ var/
 ehthumbs.db
 Thumbs.db
 
+# 3D Models
+3D Models/
+
 # Build artifacts
 *.bin
 *.elf

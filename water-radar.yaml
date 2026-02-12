@@ -1,13 +1,10 @@
 substitutions:
-    device_name: radar-80ghz-water-sensor
-    friendly_name: Radar 80GHz Water Sensor
-    # Firebase credentials as substitutions
-    firebase_api_key_sub: !secret firebase_api_key
-    firebase_project_id_sub: !secret firebase_project_id
+    device_name: water-radar
+    friendly_name: Water Radar
 
 external_components:
     - source: github://Averyy/esphome-custom-components
-      components: [hlk_ld8001h]
+      components: [hlk_ld8001h, notecard]
 
 packages:
     # Select ESP32 Board:
@@ -17,26 +14,29 @@ packages:
 
     # Optional Features:
     mosfet_control: !include common/mosfet_control.yaml #mosfet_pin on at boot, off at sleep
-    wifi: !include common/wifi.yaml
 
 output:
     - platform: gpio
-      pin: GPIO4
+      pin: GPIO2
       id: mosfet_pin
 
-uart:
-    id: uart_radar
-    tx_pin: GPIO1
-    rx_pin: GPIO3
-    baud_rate: 115200
+# Notecard configuration
+notecard:
+    id: notecard_component
+    uart_id: uart_notecard
+    project_id: !secret notecard_project_id
+    sync_interval: 6h #uses 2h measurements
+    org: !secret notecard_org
 
-http_request:
-    id: http_client
-    useragent: "ESPHome ${friendly_name}"
-    timeout: 10s
-    verify_ssl: false
-    follow_redirects: true
-    watchdog_timeout: 30s
+uart:
+    - id: uart_radar
+      tx_pin: GPIO25
+      rx_pin: GPIO26
+      baud_rate: 115200
+    - id: uart_notecard
+      tx_pin: GPIO17
+      rx_pin: GPIO16
+      baud_rate: 9600
 
 sensor:
     - platform: hlk_ld8001h
@@ -44,118 +44,49 @@ sensor:
       name: "Distance to Water"
       unit_of_measurement: "mm"
       update_interval: 3s
-      range: 2.5m # Max detection range. Default 10m (0.15m - 40m), 0.5-1m greater than expected max distance to water
+      range: 2.5m # Max detection range. Default 10m (0.15m - 40m)
       filters:
-          # Ignore the first 10
+          # Ignore the first 10 readings during sensor warmup
           - skip_initial: 10
-          # Filter out zero values
+          # Filter out zero values (invalid readings)
           - filter_out: 0
-          # Optionally add a timeout if no valid reading after some time
+          # Timeout if no valid reading after 60s
           - timeout:
                 timeout: 60s
                 value: 0
       on_value:
-          - if:
-                condition:
-                    lambda: "return id(wifi_id).is_connected();"
-                then:
-                    - lambda: |-
-                          // Received value
-                          float sensor_value = x;  // Store the filtered value
-                          ESP_LOGD("main", "Received filtered value of %.2f mm", sensor_value);
+          then:
+              - lambda: |-
+                    // Get distance from radar
+                    float distance = x;
+                    ESP_LOGD("main", "Received distance: %.2f mm", distance);
 
-                          // Last 6 digits of MAC for device doc ID
-                          char mac_str[7];
-                          uint8_t mac[6];
-                          WiFi.macAddress(mac);
-                          sprintf(mac_str, "%02X%02X%02X", mac[3], mac[4], mac[5]);
+                    // Get values from Notecard
+                    float temperature = id(notecard_component).get_notecard_temperature();
+                    float battery_voltage = id(notecard_component).get_notecard_battery_voltage();
+                    ESP_LOGD("main", "Notecard temp: %.2f C, battery: %.2f V", temperature, battery_voltage);
 
-                          // Subcollection history doc ID (random)
-                          uint32_t doc_id = esp_random();
-                          char doc_id_str[9];
-                          sprintf(doc_id_str, "%08X", doc_id);
+                    // Create JSON with all values
+                    std::string json = "{";
+                    json += "\"type\":\"water\"";
+                    json += ",\"distance\":" + to_string(distance);
+                    json += ",\"temperature\":" + to_string(temperature);
+                    json += ",\"batteryVoltage\":" + to_string(battery_voltage);
+                    json += "}";
 
-                          // Full path for device doc: devices/{mac_str}
-                          // Full path for history doc: devices/{mac_str}/history/{doc_id_str}
-                          std::string commit_url =
-                            "https://firestore.googleapis.com/v1/projects/${firebase_project_id_sub}/databases/(default)/documents:commit?key="
-                            "${firebase_api_key_sub}";
+                    ESP_LOGD("main", "Sending: %s", json.c_str());
 
-                          // Construct the JSON and log the info
-                          // Main doc path
-                          std::string main_doc_path = "projects/${firebase_project_id_sub}/databases/(default)/documents/devices/" + std::string(mac_str);
-                          // History doc path
-                          std::string hist_doc_path = main_doc_path + "/history/" + doc_id_str;
+                    bool success = id(notecard_component).send_data(json);
+                    ESP_LOGD("main", "Data send %s", success ? "successful" : "failed");
 
-                          ESP_LOGD("firestore", "Preparing single commit with 2 writes:");
-                          ESP_LOGD("firestore", " - Main doc: %s  (distance=%.2f mm, last_updated=REQUEST_TIME)", main_doc_path.c_str(), sensor_value);
-                          ESP_LOGD("firestore", " - History doc: %s  (distance=%.2f mm, timestamp=REQUEST_TIME)", hist_doc_path.c_str(), sensor_value);
+                    // Give time for Notecard communication to complete
+                    ESP_LOGD("main", "Going to sleep in 1s...");
+                    delay(1000);
 
-                          // Build the commit body
-                          std::string commit_body = R"({
-                            "writes": [
-                              {
-                                "update": {
-                                  "name": ")" + main_doc_path + R"(",
-                                  "fields": {
-                                    "distance": {
-                                      "doubleValue": )" + std::to_string(sensor_value) + R"(
-                                    }
-                                  }
-                                },
-                                "updateTransforms": [
-                                  {
-                                    "fieldPath": "last_updated",
-                                    "setToServerValue": "REQUEST_TIME"
-                                  }
-                                ],
-                                "updateMask": {
-                                  "fieldPaths": ["distance", "last_updated"]
-                                }
-                              },
-                              {
-                                "update": {
-                                  "name": ")" + hist_doc_path + R"(",
-                                  "fields": {
-                                    "distance": {
-                                      "doubleValue": )" + std::to_string(sensor_value) + R"(
-                                    }
-                                  }
-                                },
-                                "updateTransforms": [
-                                  {
-                                    "fieldPath": "timestamp",
-                                    "setToServerValue": "REQUEST_TIME"
-                                  }
-                                ],
-                                "currentDocument": {
-                                  "exists": false
-                                }
-                              }
-                            ]
-                          })";
-
-                          // Prepare http headers
-                          std::list<esphome::http_request::Header> headers;
-                          {
-                            esphome::http_request::Header h;
-                            h.name = "Content-Type";
-                            h.value = "application/json";
-                            headers.push_back(h);
-                          }
-
-                          // Single commit request
-                          auto result = id(http_client).post(commit_url, commit_body, headers);
-                          if (result) {
-                            ESP_LOGD("firestore", "SUCCESS: Both writes (main & history) saved!");
-                          } else {
-                            ESP_LOGE("firestore", "ERROR: Commit request failed!");
-                          }
-
-                    - deep_sleep.enter: deep_sleep_mode
+              - deep_sleep.enter: deep_sleep_mode
 
 # Deep sleep configuration
 deep_sleep:
     id: deep_sleep_mode
-    run_duration: 3min #goto sleep if something stalls or fails
+    run_duration: 5min #sleep on stall or fail
     sleep_duration: 2h

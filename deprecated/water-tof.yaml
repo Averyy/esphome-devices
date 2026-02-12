@@ -10,14 +10,14 @@ external_components:
 
 packages:
     # Select ESP32 Board:
-    device_base: !include common/device_esp32dev.yaml
-    # device_base: !include common/device_esp32c3_mini.yaml
-    # device_base: !include common/device_esp32c6_firebeetle.yaml
+    device_base: !include ../common/device_esp32dev.yaml
+    # device_base: !include ../common/device_esp32c3_mini.yaml
+    # device_base: !include ../common/device_esp32c6_firebeetle.yaml
 
     # Optional Features:
-    mosfet_control: !include common/mosfet_control.yaml #mosfet_pin on at boot, off at sleep
-    # firestore_setup: !include common/firestore_setup.yaml #firebase globals and http
-    wifi: !include common/wifi.yaml
+    mosfet_control: !include ../common/mosfet_control.yaml #mosfet_pin on at boot, off at sleep
+    # firestore_setup: !include ../common/firestore_setup.yaml #firebase globals and http
+    wifi: !include ../common/wifi.yaml
 
 esphome:
     on_boot:
