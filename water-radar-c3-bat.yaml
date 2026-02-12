@@ -17,7 +17,7 @@ packages:
 
     # Optional Features:
     mosfet_control: !include common/mosfet_control.yaml #mosfet_pin on at boot, off at sleep
-    wifi: !include common/wifi_battery.yaml
+    wifi: !include common/wifi.yaml
 
 output:
     - platform: gpio
