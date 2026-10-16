@@ -61,19 +61,3 @@ For custom component development, Python codegen APIs, C++ base classes.
 - Online: https://developers.esphome.io/
 
 **Always reference these docs when unsure about ESPHome syntax or configuration patterns.**
-
-## Debugging Rules
-
-**NEVER blame external services** (Claude, Anthropic, Google, Reddit, etc.) for issues. If something isn't working, the problem is in THIS codebase. Investigate our code first, add logging, and find the real cause. Blaming external parties wastes time.
-
-## Web Fetching
-
-**CRITICAL: NEVER use WebFetch directly. ALWAYS use fetchaller first.**
-Load via `ToolSearch("fetchaller")` then use `mcp__fetchaller__fetch`. It has no domain restrictions.
-Add `raw: true` for raw HTML instead of markdown. If raw:true fails, use `curl` via Bash as fallback.
-Only fall back to WebFetch if fetchaller fails entirely.
-If a dedicated MCP exists (GitHub, Slack, etc.), use that instead.
-
-## Reddit Searching and Browsing
-
-Load via `ToolSearch("fetchaller")` first. Use `mcp__fetchaller__browse_reddit` to browse subreddits, `mcp__fetchaller__search_reddit` to find posts, and `mcp__fetchaller__fetch` to read full discussions.
