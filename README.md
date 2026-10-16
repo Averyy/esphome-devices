@@ -20,7 +20,14 @@ A system that monitors propane tank levels using a magnetic hall effect angle se
 
 A bought board, not a custom build, and the exception to the solar/deep-sleep pattern: mains-powered (12 V) and on wired ethernet. Reads the house's 15 pre-wired alarm cables on 16 optoisolated dry-contact inputs and reports them to Home Assistant over the native API. Device name `alarm`, so the board serves a live zone page at http://alarm.local. Currently the tracing config (16 neutral zones). Wiring, zone map and setup runbook live in the house-helper repo (`cabling/alarm-panel-setup.md`).
 
-Flash with `esphome run alarm-panel.yaml` (USB the first time, then over the network). Needs `alarm_panel_api_key` in `secrets.yaml`; OTA uploads are encrypted with the same key.
+Flash with `esphome run alarm-panel.yaml` (USB the first time, then over the network). Needs `alarm_panel_api_key` in `secrets.yaml`; OTA uploads are encrypted with the same key, and Home Assistant asks for it when adopting the device.
+
+Board notes, from the bench:
+
+-   **First flash: use a USB-A port** (C-to-A adapter + A-to-C cable). A C-to-C cable from a Mac gives nothing. The USB-C is the ESP32-S3's built-in USB Serial/JTAG (`303a:1001`), with no bridge chip.
+-   **Input expander addresses are swapped** from Kincony's v3 pin define on this board: `0x22` = inputs 1-8, `0x21` = inputs 9-16. To check another board, jumper input 1 to its bank GND: if Zone 09 lights instead of Zone 01, swap the two addresses.
+-   **Zone changes log only at `VERBOSE`** (`'Zone 01' >> ON`) in ESPHome 2026.9, so the logger is `VERBOSE` with `i2c` held at `DEBUG` (VERBOSE i2c logs every poll).
+-   The web API addresses entities by name: `curl 'http://alarm.local/binary_sensor/Zone%2001'`.
 
 [View Configuration](alarm-panel.yaml)
 
@@ -28,7 +35,7 @@ Flash with `esphome run alarm-panel.yaml` (USB the first time, then over the net
 
 A system that monitors underground water cistern levels using a Time-of-Flight sensor (VL53L1X). Struggled with humidity, so it has a pre-heating resistor setup to defog the lens. I've stopped using it and switched to mmWave radar, but left it up as an example since it works.
 
-[View Water TOF Documentation](water-tof-README.md) | [View Configuration](water-tof.yaml)
+[View Water TOF Documentation](deprecated/water-tof-README.md) | [View Configuration](deprecated/water-tof.yaml)
 
 ## Common Components
 
@@ -63,18 +70,19 @@ These shared configurations help maintain consistency across devices and reduce 
 
 ## Project Structure
 
-All YAML configuration files are now at the top level as they didn't work properly in subfolders.
+Active device configurations are at the top level, as they didn't work properly in subfolders.
 
 ```
-├── common/              # Shared ESPHome configurations
-├── water-radar.yaml     # Water radar device configuration
-├── water-radar-c3.yaml  # Water radar for ESP32-C3 configuration
-├── propane-angle.yaml   # Propane angle device configuration
-├── propane-angle-c3.yaml # Propane angle for ESP32-C3 configuration
-├── water-tof.yaml       # Water TOF device configuration
-├── *-README.md          # Documentation for each device
-├── build.sh             # Build script that moves bin files after
-└── README.md            # This file
+├── common/               # Shared ESPHome configurations
+├── deprecated/           # Retired configs (Water TOF, Firebase water radar variants)
+├── tests/                # Test configs (water radar, propane angle, propane angle C3)
+├── water-radar.yaml      # Water radar device configuration
+├── propane-angle.yaml    # Propane angle device configuration
+├── alarm-panel.yaml      # KC868-A16v3 alarm panel (ethernet)
+├── *-README.md           # Documentation for each device
+├── notehub-jsonata.md    # JSONata expressions for Notehub routes
+├── build.sh              # Build script that moves bin files after
+└── README.md             # This file
 ```
 
 ## Configuration and Secrets
@@ -96,6 +104,9 @@ firebase_project_id: "your_firebase_project_id"
 # Notecard Configuration (for cellular devices)
 notecard_project_id: "your_notecard_project_id"
 notecard_org: "your_notecard_org"
+
+# Alarm panel API encryption key (32 bytes, base64: openssl rand -base64 32)
+alarm_panel_api_key: "your_base64_api_key"
 ```
 
 ## License
