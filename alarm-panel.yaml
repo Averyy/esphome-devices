@@ -1,0 +1,141 @@
+# KinCony KC868-A16v3 — alarm panel, mechanical-room.
+#
+# TRACING CONFIG: 16 neutral zones, no device classes, no alarm logic yet.
+#   OFF = loop open (bare wire end, or a reed switch with no magnet)
+#   ON  = loop closed (magnet on a reed, or a jumper across the far end)
+# Watch the zones at http://alarm.local while walking the house.
+#
+# Wiring, zone map and tracing procedure live in house-helper:
+#   cabling/alarm-panel-setup.md (runbook), cabling/kc868-a16v3-reference.md (pin map)
+# Pin map from devices.esphome.io/devices/kincony-kc868-a16v3/ (community page, not ESPHome-tested).
+# Kincony's v3 pin define (forum tid=7614) puts inputs 1-8 at 0x21 and 9-16 at 0x22. THIS board has
+# them swapped, as one forum user reported: on the bench 2026-10-16, a jumper on input 1 lit Zone 09
+# with 0x21 as bank 1. So bank 1 is 0x22 below.
+
+substitutions:
+  device_name: alarm
+  friendly_name: Alarm Panel
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  platformio_options:
+    board_build.flash_mode: dio
+
+esp32:
+  variant: esp32s3
+  framework:
+    type: esp-idf
+
+logger:
+  hardware_uart: USB_SERIAL_JTAG
+  # ESPHome 2026.9 logs binary_sensor changes ('Zone 01' >> ON) only at VERBOSE. Tracing needs them.
+  level: VERBOSE
+  logs:
+    i2c: DEBUG          # VERBOSE i2c logs every PCF8574 poll
+
+api:
+  encryption:
+    key: !secret alarm_panel_api_key
+
+# OTA encryption with no key inherits the api key (ESPHome 2026.9 recommends this over a password).
+ota:
+  - platform: esphome
+    encryption: {}
+
+# Wired ethernet only. ESPHome cannot run wifi: and ethernet: together.
+ethernet:
+  type: W5500
+  clk_pin: GPIO42
+  mosi_pin: GPIO43
+  miso_pin: GPIO44
+  cs_pin: GPIO15
+  interrupt_pin: GPIO2
+  reset_pin: GPIO1
+
+web_server:
+  port: 80
+
+text_sensor:
+  - platform: ethernet_info
+    ip_address:
+      name: "IP Address"
+
+i2c:
+  - id: bus_a
+    sda: 9
+    scl: 10
+    scan: true
+    frequency: 400kHz
+
+pcf8574:
+  - id: pcf_in_1        # inputs 1-8 (swapped from Kincony's pin define; see header)
+    address: 0x22
+  - id: pcf_in_2        # inputs 9-16
+    address: 0x21
+
+binary_sensor:
+  - platform: gpio
+    name: "Zone 01"
+    pin: {pcf8574: pcf_in_1, number: 0, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 02"
+    pin: {pcf8574: pcf_in_1, number: 1, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 03"
+    pin: {pcf8574: pcf_in_1, number: 2, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 04"
+    pin: {pcf8574: pcf_in_1, number: 3, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 05"
+    pin: {pcf8574: pcf_in_1, number: 4, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 06"
+    pin: {pcf8574: pcf_in_1, number: 5, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 07"
+    pin: {pcf8574: pcf_in_1, number: 6, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 08"
+    pin: {pcf8574: pcf_in_1, number: 7, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 09"
+    pin: {pcf8574: pcf_in_2, number: 0, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 10"
+    pin: {pcf8574: pcf_in_2, number: 1, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 11"
+    pin: {pcf8574: pcf_in_2, number: 2, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 12"
+    pin: {pcf8574: pcf_in_2, number: 3, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 13"
+    pin: {pcf8574: pcf_in_2, number: 4, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 14"
+    pin: {pcf8574: pcf_in_2, number: 5, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 15"
+    pin: {pcf8574: pcf_in_2, number: 6, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
+  - platform: gpio
+    name: "Zone 16"
+    pin: {pcf8574: pcf_in_2, number: 7, mode: INPUT, inverted: true}
+    filters: [delayed_on_off: 50ms]
