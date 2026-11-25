@@ -5,6 +5,8 @@
 # old Home Assistant entity.
 #   OFF = loop open (bare wire end, or a reed switch with no magnet)
 #   ON  = loop closed (magnet on a reed, or a jumper across the far end)
+# EXCEPT named door zones (device_class: door, inverted: false): ON = door OPEN (loop broken),
+# OFF = door closed. Home Assistant shows Open/Closed; http://alarm.local still shows ON/OFF.
 # Watch the zones at http://alarm.local while walking the house.
 #
 # Wiring, zone map and tracing procedure live in house-helper:
@@ -127,17 +129,21 @@ binary_sensor:
     filters: [delayed_on_off: 50ms]
   - platform: gpio
     name: "Zone 13: Door Garage Hallway"
-    pin: {pcf8574: pcf_in_2, number: 4, mode: INPUT, inverted: true}
+    device_class: door
+    pin: {pcf8574: pcf_in_2, number: 4, mode: INPUT, inverted: false}
     filters: [delayed_on_off: 50ms]
   - platform: gpio
     name: "Zone 14: Door Front"
-    pin: {pcf8574: pcf_in_2, number: 5, mode: INPUT, inverted: true}
+    device_class: door
+    pin: {pcf8574: pcf_in_2, number: 5, mode: INPUT, inverted: false}
     filters: [delayed_on_off: 50ms]
   - platform: gpio
     name: "Zone 15: Door North Balcony"
-    pin: {pcf8574: pcf_in_2, number: 6, mode: INPUT, inverted: true}
+    device_class: door
+    pin: {pcf8574: pcf_in_2, number: 6, mode: INPUT, inverted: false}
     filters: [delayed_on_off: 50ms]
   - platform: gpio
     name: "Zone 16: Door Garage Backyard"
-    pin: {pcf8574: pcf_in_2, number: 7, mode: INPUT, inverted: true}
+    device_class: door
+    pin: {pcf8574: pcf_in_2, number: 7, mode: INPUT, inverted: false}
     filters: [delayed_on_off: 50ms]
