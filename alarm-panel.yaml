@@ -1,6 +1,8 @@
 # KinCony KC868-A16v3 — alarm panel, mechanical-room.
 #
-# TRACING CONFIG: 16 neutral zones, no device classes, no alarm logic yet.
+# TRACING CONFIG: no device classes, no alarm logic yet. Zones are named as they are identified
+# (house-helper cabling/alarm-panel-setup.md §5); the rest stay "Zone NN". Renaming one orphans its
+# old Home Assistant entity.
 #   OFF = loop open (bare wire end, or a reed switch with no magnet)
 #   ON  = loop closed (magnet on a reed, or a jumper across the far end)
 # Watch the zones at http://alarm.local while walking the house.
@@ -124,18 +126,18 @@ binary_sensor:
     pin: {pcf8574: pcf_in_2, number: 3, mode: INPUT, inverted: true}
     filters: [delayed_on_off: 50ms]
   - platform: gpio
-    name: "Zone 13"
+    name: "Zone 13: Door Garage Hallway"
     pin: {pcf8574: pcf_in_2, number: 4, mode: INPUT, inverted: true}
     filters: [delayed_on_off: 50ms]
   - platform: gpio
-    name: "Zone 14"
+    name: "Zone 14: Door Front"
     pin: {pcf8574: pcf_in_2, number: 5, mode: INPUT, inverted: true}
     filters: [delayed_on_off: 50ms]
   - platform: gpio
-    name: "Zone 15"
+    name: "Zone 15: Door North Balcony"
     pin: {pcf8574: pcf_in_2, number: 6, mode: INPUT, inverted: true}
     filters: [delayed_on_off: 50ms]
   - platform: gpio
-    name: "Zone 16"
+    name: "Zone 16: Door Garage Backyard"
     pin: {pcf8574: pcf_in_2, number: 7, mode: INPUT, inverted: true}
     filters: [delayed_on_off: 50ms]

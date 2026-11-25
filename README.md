@@ -18,7 +18,7 @@ A system that monitors propane tank levels using a magnetic hall effect angle se
 
 ### Alarm Panel (KinCony KC868-A16v3)
 
-A bought board, not a custom build, and the exception to the solar/deep-sleep pattern: mains-powered (12 V) and on wired ethernet. Reads the house's 15 pre-wired alarm cables on 16 optoisolated dry-contact inputs and reports them to Home Assistant over the native API. Device name `alarm`, so the board serves a live zone page at http://alarm.local. Currently the tracing config (16 neutral zones). Wiring, zone map and setup runbook live in the house-helper repo (`cabling/alarm-panel-setup.md`).
+A bought board, not a custom build, and the exception to the solar/deep-sleep pattern: mains-powered (12 V) and on wired ethernet. Reads the house's 15 pre-wired alarm cables on 16 optoisolated dry-contact inputs and reports them to Home Assistant over the native API. Device name `alarm`, so the board serves a live zone page at http://alarm.local. Currently the tracing config (16 zones, named in the YAML as each is identified; renaming one orphans its old Home Assistant entity). Wiring, zone map and setup runbook live in the house-helper repo (`cabling/alarm-panel-setup.md`).
 
 Flash with `esphome run alarm-panel.yaml` (USB the first time, then over the network). Needs `alarm_panel_api_key` in `secrets.yaml`; OTA uploads are encrypted with the same key, and Home Assistant asks for it when adopting the device.
 
